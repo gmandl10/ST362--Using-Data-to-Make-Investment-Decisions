@@ -1,0 +1,187 @@
+---
+title: "ST362FinalProject"
+author: "George Mandl"
+date: '2022-07-20'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(!require("leaps")) {install.packages("leaps")}
+if(!require("ISLR")) {install.packages("ISLR")}
+if(!require("corrgram")) {install.packages("corrgram")}
+if(!require("car")) {install.packages("car")}
+if(!require("dplyr")) {install.packages("dplyr")}
+library(leaps)
+library(ISLR)
+library(corrgram)
+library(car)
+library(dplyr)
+
+if(!require("lmtest")){install.packages("lmtest")}
+
+library(lmtest)
+```
+
+```{r}
+master = read.csv("StockPricePredictionDataSet.csv")
+```
+
+```{r}
+df <- master %>%
+  mutate(BollingerRange = UpperBB - LowerBB,
+         KeltnerRange = KeltnerUpperBand - KeltnerLowerBand) %>% 
+  select(-Open, -High, -Low, -X..Change, -Close, -Symbol, -Adj.Close, -UpperBB, -LowerBB, -KeltnerLowerBand, -KeltnerUpperBand, -Date, -Volume)
+df3 <- master %>%
+  mutate(BollingerRange = UpperBB - LowerBB,
+         KeltnerRange = KeltnerUpperBand - KeltnerLowerBand) %>% 
+  select(-Open, -High, -Low, -FuturePrice, -Close, -Symbol, -Adj.Close, -UpperBB, -LowerBB, -KeltnerLowerBand, -KeltnerUpperBand, -Date, -Volume, -Williams.R)
+```
+
+```{r}
+df4 <- master %>%
+  mutate(BollingerRange = UpperBB - LowerBB,
+         KeltnerRange = KeltnerUpperBand - KeltnerLowerBand) %>% 
+  select(-Open, -High, -Low, -X..Change, -Close, -Adj.Close, -UpperBB, -LowerBB, -KeltnerLowerBand, -KeltnerUpperBand, -Date, -Volume, -Williams.R)
+```
+
+```{r}
+reg.example= regsubsets(FuturePrice~.,data = df,  method = "forward")
+
+reg.summary = summary(reg.example)
+reg.summary
+```
+
+```{r}
+data.frame(
+  Adj.R2 = which.max(reg.summary$adjr2),
+  CP = which.min(reg.summary$cp),
+  BIC = which.min(reg.summary$bic),
+  RSS = which.min(reg.summary$rss)
+)
+```
+
+
+```{r}
+df2<- df %>% 
+  select(- Williams.R)
+```
+
+
+
+```{r}
+model <- lm(FuturePrice~., data=df2)
+vif(model)
+print("-------------------------------------------------------------------------------------------------------------------------------")
+model2 <- lm(FuturePrice~. -BollingerRange, data = df2)
+vif(model2)
+```
+```{r}
+anova(model2,model)
+```
+
+```{r}
+model <- lm(FuturePrice~., data=df2)
+vif(model)
+print("-------------------------------------------------------------------------------------------------------------------------------")
+model2 <- lm(FuturePrice~. -Disparity -StochasticOscillator, data = df2)
+vif(model2)
+```
+
+```{r}
+anova(model2, model)
+```
+```{r}
+fpmodel <- lm(FuturePrice~., data=df2)
+pcmodel <- lm(X..Change~., data=df3)
+summary(fpmodel)
+summary(pcmodel)
+```
+```{r}
+m3df <- df4 %>% filter(Symbol == "MMM") %>% select(-Symbol)
+m3df
+```
+
+```{r}
+corrgram(m3df, order=TRUE, upper.panel=panel.cor)
+```
+
+
+```{r}
+m3model1 <- lm(FuturePrice ~., data = m3df)
+```
+
+```{r}
+std_function <- function(x){(x-mean(x, na.rm = T))/sd(x, na.rm = T)}
+```
+
+```{r}
+m3df_std<-m3df
+
+m3df_std[2:13] <-apply(m3df_std[2:13], 2, std_function) 
+
+m3model2=lm(FuturePrice~., data = m3df_std) 
+```
+
+```{r}
+vif(m3model1)
+print("-------------------------------------------------------------------------------------------------------------------------------")
+vif(m3model2)
+```
+```{r}
+summary(m3model1)
+print("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+summary(m3model2)
+```
+
+```{r}
+whrdf <- df4 %>% filter(Symbol == "WHR") %>% select(-Symbol)
+whrdf
+```
+
+```{r}
+whrmodel1 <- lm(FuturePrice ~., data = whrdf)
+summary(whrmodel1)
+```
+
+```{r}
+fit.example.1=lm(FuturePrice~., data=df2)
+
+plot(fit.example.1)
+```
+
+
+```{r}
+bptest(fit.example.1)
+```
+  
+```{r} 
+#used
+df4 <- master %>% 
+  mutate(BollingerRange = UpperBB - LowerBB,
+         KeltnerRange = KeltnerUpperBand - KeltnerLowerBand) %>% 
+  select(-Open, -High, -Low, -X..Change, -Close, -Adj.Close, -UpperBB, -LowerBB, -KeltnerLowerBand, -KeltnerUpperBand, -Date, -Volume)
+```
+
+
+  
+```{r}
+#used
+symbols <- unique(df4$Symbol)
+
+total_resid <- 0
+
+for (i in symbols)
+  {
+  temp <- df4 %>% filter(Symbol == i) %>% select(-Symbol)
+  mod <- lm(FuturePrice~., data = temp)
+  res <- anova(mod)["Residuals", "Sum Sq"]
+  total_resid <- total_resid + res
+}
+
+```
+```{r}
+print("Total Residuals:")
+print(total_resid)
+```
+
